@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Soulify</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div id="chatContainer">
+    <header class="rounded-container">
+      <img src="soulify-logo.png" alt="Soulify Logo" class="app-logo">
+      <button id="endChat" onclick="endChat()" class="neon-btn">End Chat</button>
+      <button id="toggleMode" class="mode-btn">&#x1F319;</button>
+      
+    </header>
+    <div id="chatBox"></div>
+    <div id="typingIndicator"></div>
+    <footer>
+      <textarea id="chatInput" placeholder="Type a message..."></textarea>
+      <button id="sendBtn" class="neon-btn">Send</button>
+    </footer>
+  </div>
+  <script>
+    const socket = io();
+    const chatBox = document.getElementById('chatBox');
+    const typingIndicator = document.getElementById('typingIndicator');
+    const chatInput = document.getElementById('chatInput');
+    const sendBtn = document.getElementById('sendBtn');
+    let partnerId;
+
+    // Initiate chat
+    socket.emit('startChat');
+
+    // Send chat message
+    const sendMessage = () => {
+      const message = chatInput.value.trim();
+      if (message) {
+        chatBox.innerHTML += `<p>You: ${message}</p>`;
+        socket.emit('chatMessage', message);
+        chatInput.value = '';
+      }
+    };
+
+    sendBtn.addEventListener('click', sendMessage);
+
+    // Send message on Enter key press
+    chatInput.addEventListener('keydown', (event) => {
+      if (event.key === 'Enter' && !event.shiftKey) {
+        event.preventDefault();
+        sendMessage();
+      }
+    });
+
+    // Listen for chat messages
+    socket.on('chatMessage', (msg) => {
+      chatBox.innerHTML += `<p>Stranger: ${msg}</p>`;
+    });
+
+    // Typing indicator
+    chatInput.addEventListener('input', () => {
+      socket.emit('typing');
+    });
+    socket.on('typing', () => {
+      typingIndicator.textContent = 'Stranger is typing...';
+      setTimeout(() => {
+        typingIndicator.textContent = '';
+      }, 1000);
+    });
+
+    // Handle chat started
+    socket.on('chatStarted', (partner) => {
+      partnerId = partner;
+      chatBox.innerHTML += '<p>Connected to a stranger</p>';
+    });
+
+    // Handle waiting status
+    socket.on('waiting', () => {
+      chatBox.innerHTML += '<p>Looking for a stranger...</p>';
+    });
+
+    // Handle chat ended
+    socket.on('chatEnded', () => {
+      chatBox.innerHTML += '<p>Stranger has ended the chat.</p>';
+      const newButton = document.createElement('button');
+      newButton.innerText = 'Connect with a new stranger';
+      newButton.classList.add('neon-btn');
+      newButton.onclick = () => socket.emit('startChat');
+      chatBox.appendChild(newButton);
+    });
+
+    // End Chat
+    function endChat() {
+      socket.emit('endChat');
+      window.location.href = 'index.html';
+    }
+
+    // Dark/Light Mode Toggle
+    const toggleButton = document.getElementById('toggleMode');
+    toggleButton.addEventListener('click', () => {
+      document.body.classList.toggle('dark-mode');
+      if (document.body.classList.contains('dark-mode')) {
+        toggleButton.innerHTML = '&#x2600;';
+      } else {
+        toggleButton.innerHTML = '&#x1F319;';
+      }
+    });
+  </script>
+</body>
+</html>
